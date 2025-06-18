@@ -97,7 +97,6 @@ def move_file(list_of_path, file_suffix, path_to_destination_dir):
             logging.info(f"Move {i} files to {destination_path}")
             i.rename(destination_path)
             print ("Move ", colorama.Fore.RED, i, colorama.Fore.RESET)
-            sleep(1)
     logging.info(f"End moving for {file_suffix[1::]} files")
 
 
