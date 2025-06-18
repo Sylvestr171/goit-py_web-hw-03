@@ -80,16 +80,22 @@ def iter_object_in_dir(path: Path, list_of_file: list =[], set_of_suffix: set =s
     return list_of_file, set_of_suffix
 
 def create_folder(set_of_suffix, destination_path):
+    logging.info(f"Створення папок")
     for i in set_of_suffix:
         new_folder_path=destination_path/i[1::]
-        print(new_folder_path)
-        # new_folder_path.mkdir(parents=True, exist_ok=True)
+        if not new_folder_path.exists():
+            new_folder_path.mkdir(parents=True, exist_ok=True)
+            logging.info(f'Створено теку: {new_folder_path}')
+        else:
+            logging.info(f'Тека вже існує: {new_folder_path}')
 
-def move_file(list_of_path, file_suffix, destination_path):
+def move_file(list_of_path, file_suffix, path_to_destination_dir):
     logging.info(f"Start moving for {file_suffix[1::]} files")
     for i in list_of_path:
         if i.suffix == file_suffix:
-            logging.info(f"Move {i} files")
+            destination_path=path_to_destination_dir/file_suffix[1::]/i.name
+            logging.info(f"Move {i} files to {destination_path}")
+            i.rename(destination_path)
             print ("Move ", colorama.Fore.RED, i, colorama.Fore.RESET)
             sleep(1)
     logging.info(f"End moving for {file_suffix[1::]} files")
