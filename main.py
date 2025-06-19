@@ -1,7 +1,7 @@
 import sys
 from pathlib import Path
 import colorama
-from threading import Thread
+from threading import Thread, RLock
 import logging
 from time import sleep
 
@@ -67,15 +67,34 @@ def validation_arg(list_of_arg: list) -> tuple[Path, Path] | tuple[None, None]:
         return None, None
 
 
+lock = RLock()
 #функція формування списку шляхів до папок/файлів
 def iter_object_in_dir(path: Path, list_of_file: list =[], set_of_suffix: set =set()) -> tuple[list, set]:
-    for i in path.iterdir():
-        if i.is_file(): #перевіряємо чи об'єкт файл
-            list_of_file.append(i) #додаємо до списку шлях до файлу
-        elif i.is_dir():  #перевіряємо чи об'єкт папка
-            iter_object_in_dir(i, list_of_file, set_of_suffix) #рекурсивно викикаємо функцію
-    for i in list_of_file:
-        set_of_suffix.add(i.suffix)
+    threads=[]
+    logging.info(f"увійшли в функцію iter_object_in_dir")
+    def worker(path: Path) -> None:
+        nonlocal list_of_file, set_of_suffix, threads
+        for i in path.iterdir():
+            if i.is_file(): #перевіряємо чи об'єкт файл
+                with lock:
+                    list_of_file.append(i) #додаємо до списку шлях до файлу, використовуємо RLock щоб уникнути обночасного запису
+                    logging.info(f"Додавання {i} в list_of_file ")
+            elif i.is_dir():  #перевіряємо чи об'єкт папка
+                thread = Thread (target=worker, args=(i, )) #принцип рекурсії але замість неї викликаємо новий потік
+                thread.start()
+                logging.info(f"Запуск потоку {thread}")
+                threads.append(thread)
+        for i in list_of_file:
+            with lock:
+                set_of_suffix.add(i.suffix)
+                logging.info(f"Додавання {i} в set_of_suffix ")
+    main_thread = Thread (target=worker, args=(path, ))
+    main_thread.start()
+    logging.info(f"Запуск main_thread")
+    threads.append(main_thread)
+    for t in threads:
+        t.join()
+        logging.info(f"Завершено {t}")
     logging.info(f"Перелік файлів: {list_of_file}\n Перелік розширень: {set_of_suffix}")
     return list_of_file, set_of_suffix
 
@@ -107,6 +126,8 @@ if __name__ == '__main__':
         user_input = input("Enter source directory and destination directory: ")
         path_to_source_dir, path_to_destination_dir = validation_arg(user_input.split())
         if path_to_source_dir is not None and path_to_destination_dir is not None:
+            lock = RLock()
+            threads=[]
             list_of_file, set_of_suffix = iter_object_in_dir(path_to_source_dir)
             create_folder(set_of_suffix, path_to_destination_dir)
             for i in set_of_suffix:
