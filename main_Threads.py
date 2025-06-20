@@ -121,7 +121,7 @@ def iter_object_in_dir(path: Path, list_of_file: list =[], set_of_suffix: set =s
     logging.info("Перелік розширень: %s", set_of_suffix)
     return list_of_file, set_of_suffix
 
-def create_folder(semaphore: Semaphore ,set_of_suffix: set, destination_path: Path) -> None:
+def create_folder(set_of_suffix: set, destination_path: Path) -> None:
 
     "Функція створення каталогів"
 
@@ -160,7 +160,7 @@ if __name__ == '__main__':
             threads=[]
             pool=Semaphore(2)
             list_of_file, set_of_suffix = iter_object_in_dir(path_to_source_dir)
-            create_folder(pool, set_of_suffix, path_to_destination)
+            create_folder(set_of_suffix, path_to_destination)
             for i in set_of_suffix:
                 th = Thread(target=move_file, args=(list_of_file, i, path_to_destination, ))
                 th.start()
