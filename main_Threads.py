@@ -1,7 +1,7 @@
 "Модуля 3. Д/з 1 Багатопотоковість"
 
 from pathlib import Path
-from threading import Thread, RLock
+from threading import Thread, RLock, Semaphore
 import logging
 import colorama
 
@@ -93,7 +93,8 @@ def iter_object_in_dir(path: Path, list_of_file: list =[], set_of_suffix: set =s
 
     threads=[]
     logging.info("увійшли в функцію iter_object_in_dir")
-    def worker(path: Path) -> None:
+    pool=Semaphore(2)
+    def worker(pool: Semaphore, path: Path) -> None:
         nonlocal list_of_file, set_of_suffix, threads
         for i in path.iterdir():
             if i.is_file(): #перевіряємо чи об'єкт файл
@@ -101,7 +102,7 @@ def iter_object_in_dir(path: Path, list_of_file: list =[], set_of_suffix: set =s
                     list_of_file.append(i) #додаємо до списку шлях до файлу, використовуємо RLock щоб уникнути обночасного запису
                     logging.info("Додавання %s в list_of_file ", i)
             elif i.is_dir():  #перевіряємо чи об'єкт папка
-                thread = Thread (target=worker, args=(i, )) #принцип рекурсії але замість неї викликаємо новий потік
+                thread = Thread (target=worker, args=(pool ,i, )) #принцип рекурсії але замість неї викликаємо новий потік
                 thread.start()
                 logging.info("Запуск потоку %s", thread)
                 threads.append(thread)
@@ -109,7 +110,7 @@ def iter_object_in_dir(path: Path, list_of_file: list =[], set_of_suffix: set =s
             with lock:
                 set_of_suffix.add(i.suffix)
                 logging.info("Додавання %s в set_of_suffix ", i)
-    main_thread = Thread (target=worker, args=(path, ))
+    main_thread = Thread (target=worker, args=(pool, path, ))
     main_thread.start()
     logging.info("Запуск main_thread")
     threads.append(main_thread)
@@ -120,7 +121,7 @@ def iter_object_in_dir(path: Path, list_of_file: list =[], set_of_suffix: set =s
     logging.info("Перелік розширень: %s", set_of_suffix)
     return list_of_file, set_of_suffix
 
-def create_folder(set_of_suffix, destination_path):
+def create_folder(semaphore: Semaphore ,set_of_suffix: set, destination_path: Path) -> None:
 
     "Функція створення каталогів"
 
@@ -157,8 +158,9 @@ if __name__ == '__main__':
         if path_to_source_dir is not None and path_to_destination is not None:
             lock = RLock()
             threads=[]
+            pool=Semaphore(2)
             list_of_file, set_of_suffix = iter_object_in_dir(path_to_source_dir)
-            create_folder(set_of_suffix, path_to_destination)
+            create_folder(pool, set_of_suffix, path_to_destination)
             for i in set_of_suffix:
                 th = Thread(target=move_file, args=(list_of_file, i, path_to_destination, ))
                 th.start()
