@@ -94,8 +94,8 @@ def validation_arg(list_of_arg: list) -> tuple[Path, Path] | tuple[None, None]:
 lock = RLock()
 
 def iter_object_in_dir(path: Path,
-                       list_of_file: list =[],
-                       set_of_suffix: set =set()
+                       list_of_file_in_iter_dir: list =[],
+                       set_of_suffix_in_iter_dir: set =set()
                        ) -> tuple[list, set]:
 
     "Функція формування списку шляхів до папок/файлів"
@@ -104,24 +104,24 @@ def iter_object_in_dir(path: Path,
     logging.info("увійшли в функцію iter_object_in_dir")
     pool_for_iter_object_in_dir=Semaphore(2)
     def worker(pool_for_worker: Semaphore, path: Path) -> None:
-        nonlocal list_of_file, set_of_suffix, threads_for_dir
-        for i in path.iterdir():
-            if i.is_file(): #перевіряємо чи об'єкт файл
+        nonlocal list_of_file_in_iter_dir, set_of_suffix_in_iter_dir, threads_for_dir
+        for n in path.iterdir():
+            if n.is_file(): #перевіряємо чи об'єкт файл
                 with lock:
-                    list_of_file.append(i)
+                    list_of_file_in_iter_dir.append(n)
                     #додаємо до списку шлях до файлу,
                     # використовуємо RLock щоб уникнути обночасного запису
-                    logging.info("Додавання %s в list_of_file ", i)
-            elif i.is_dir():  #перевіряємо чи об'єкт папка
-                thread = Thread (target=worker, args=(pool_for_worker ,i, ))
+                    logging.info("Додавання %s в list_of_file_in_iter_dir ", n)
+            elif n.is_dir():  #перевіряємо чи об'єкт папка
+                thread = Thread (target=worker, args=(pool_for_worker , n, ))
                 #принцип рекурсії але замість неї викликаємо новий потік
                 thread.start()
                 logging.info("Запуск потоку %s", thread)
                 threads_for_dir.append(thread)
-        for i in list_of_file:
+        for file in list_of_file_in_iter_dir:
             with lock:
-                set_of_suffix.add(i.suffix)
-                logging.info("Додавання %s в set_of_suffix ", i)
+                set_of_suffix_in_iter_dir.add(file.suffix)
+                logging.info("Додавання %s в set_of_suffix_in_iter_dir ", file)
     main_thread = Thread (target=worker, args=(pool_for_iter_object_in_dir, path, ))
     main_thread.start()
     logging.info("Запуск main_thread")
@@ -129,17 +129,17 @@ def iter_object_in_dir(path: Path,
     for t in threads_for_dir:
         t.join()
         logging.info("Завершено %s", t)
-    logging.info("Перелік файлів: %s ", list_of_file)
-    logging.info("Перелік розширень: %s", set_of_suffix)
-    return list_of_file, set_of_suffix
+    logging.info("Перелік файлів: %s ", list_of_file_in_iter_dir)
+    logging.info("Перелік розширень: %s", set_of_suffix_in_iter_dir)
+    return list_of_file_in_iter_dir, set_of_suffix_in_iter_dir
 
 def create_folder(set_of_suffix_in_func: set, destination_path: Path) -> None:
 
     "Функція створення каталогів"
 
     logging.info("Створення папок")
-    for i in set_of_suffix_in_func:
-        new_folder_path=destination_path/i[1::]
+    for sufix in set_of_suffix_in_func:
+        new_folder_path=destination_path/sufix[1::]
         if not new_folder_path.exists():
             new_folder_path.mkdir(parents=True, exist_ok=True)
             logging.info("Створено теку: %s", new_folder_path)
@@ -151,12 +151,12 @@ def move_file(list_of_path, file_suffix, path_to_destination_dir):
     "Функція переміщення файлів"
 
     logging.info("Start moving for %s files", file_suffix[1::])
-    for i in list_of_path:
-        if i.suffix == file_suffix:
-            destination_path=path_to_destination_dir/file_suffix[1::]/i.name
-            logging.info("Move %s files to %s", i, destination_path)
-            i.rename(destination_path)
-            print ("Move ", colorama.Fore.RED, i, colorama.Fore.RESET)
+    for path in list_of_path:
+        if path.suffix == file_suffix:
+            destination_path=path_to_destination_dir/file_suffix[1::]/path.name
+            logging.info("Move %s files to %s", path, destination_path)
+            path.rename(destination_path)
+            print ("Move ", colorama.Fore.RED, path, colorama.Fore.RESET)
     logging.info("End moving for %s files", file_suffix[1::] )
 
 
