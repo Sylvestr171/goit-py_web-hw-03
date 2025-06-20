@@ -27,7 +27,7 @@ def show_detailed_help() -> None:
 Приклад:
     Enter source directory and destination directory: ./dir/ D:/path to lib/dir 
 """)
-    
+
 # функція для виводу короткої довідки при невідповідності параметрів
 def show_short_help():
 
@@ -56,7 +56,9 @@ def validation_arg(list_of_arg: list) -> tuple[Path, Path] | tuple[None, None]:
     logging.info("Валідація аргументів %s", list_of_arg)
     path_to_destination_dir = Path('./dist') #вказуємо дефолтний шлях до папки призначення
     logging.info("Присвоєння дефолтне значення для папки призначення")
-    if len(list_of_arg) == 2 and path_validation(list_of_arg[0]): #якщо кількість аргументів 2 перевіряємо чи вказана в першому шлях до папки джерела і чи вона існує
+    if len(list_of_arg) == 2 and path_validation(list_of_arg[0]):
+        #якщо кількість аргументів 2 перевіряємо чи вказана в
+        # першому шлях до папки джерела і чи вона існує
         logging.info("2 аргументи, перший, існуючий шлях до папки джерела")
         path_to_source_dir = Path(list_of_arg[0])
         path_to_destination_dir = Path(list_of_arg[1])
@@ -68,14 +70,18 @@ def validation_arg(list_of_arg: list) -> tuple[Path, Path] | tuple[None, None]:
               #якщо кількість аргументів 1 перевіряємо чи це шлях до папки джерела і чи вона існує
         logging.info("1 аргумент, існуючий шлях до папки джерела")
         path_to_source_dir = Path(list_of_arg[0])
-        print('Тека ', colorama.Fore.RED, path_to_source_dir, '\b\\', colorama.Fore.WHITE, 'обробляється')
+        print('Тека ',
+              colorama.Fore.RED, path_to_source_dir, '\b\\',
+              colorama.Fore.WHITE, 'обробляється')
         return path_to_source_dir, path_to_destination_dir
     elif len(list_of_arg) == 1 and list_of_arg[0] \
         in ('-h', '--help', '/?'): #перевіряємо чи аргумент не є запитом на довідку
         logging.info("1 аргумент, перевіряємо чи це не запит на довідку")
         show_detailed_help()
         return None, None
-    elif len(list_of_arg) == 1 and not(path_validation(list_of_arg[0])): #якщо аргументом не є шлях або така тека не існує
+    elif len(list_of_arg) == 1 and not(
+        path_validation(list_of_arg[0])
+        ): #якщо аргументом не є шлях або така тека не існує
         logging.info("1 аргумент з неіснуючим шляхом")
         print (colorama.Fore.RED, \
                'Даний шлях не існує або аргумент не є шляхом', colorama.Fore.WHITE )
@@ -87,34 +93,40 @@ def validation_arg(list_of_arg: list) -> tuple[Path, Path] | tuple[None, None]:
 
 lock = RLock()
 
-def iter_object_in_dir(path: Path, list_of_file: list =[], set_of_suffix: set =set()) -> tuple[list, set]:
+def iter_object_in_dir(path: Path,
+                       list_of_file: list =[],
+                       set_of_suffix: set =set()
+                       ) -> tuple[list, set]:
 
     "Функція формування списку шляхів до папок/файлів"
 
-    threads=[]
+    threads_for_dir=[]
     logging.info("увійшли в функцію iter_object_in_dir")
-    pool=Semaphore(2)
-    def worker(pool: Semaphore, path: Path) -> None:
-        nonlocal list_of_file, set_of_suffix, threads
+    pool_for_iter_object_in_dir=Semaphore(2)
+    def worker(pool_for_worker: Semaphore, path: Path) -> None:
+        nonlocal list_of_file, set_of_suffix, threads_for_dir
         for i in path.iterdir():
             if i.is_file(): #перевіряємо чи об'єкт файл
                 with lock:
-                    list_of_file.append(i) #додаємо до списку шлях до файлу, використовуємо RLock щоб уникнути обночасного запису
+                    list_of_file.append(i)
+                    #додаємо до списку шлях до файлу,
+                    # використовуємо RLock щоб уникнути обночасного запису
                     logging.info("Додавання %s в list_of_file ", i)
             elif i.is_dir():  #перевіряємо чи об'єкт папка
-                thread = Thread (target=worker, args=(pool ,i, )) #принцип рекурсії але замість неї викликаємо новий потік
+                thread = Thread (target=worker, args=(pool_for_worker ,i, ))
+                #принцип рекурсії але замість неї викликаємо новий потік
                 thread.start()
                 logging.info("Запуск потоку %s", thread)
-                threads.append(thread)
+                threads_for_dir.append(thread)
         for i in list_of_file:
             with lock:
                 set_of_suffix.add(i.suffix)
                 logging.info("Додавання %s в set_of_suffix ", i)
-    main_thread = Thread (target=worker, args=(pool, path, ))
+    main_thread = Thread (target=worker, args=(pool_for_iter_object_in_dir, path, ))
     main_thread.start()
     logging.info("Запуск main_thread")
-    threads.append(main_thread)
-    for t in threads:
+    threads_for_dir.append(main_thread)
+    for t in threads_for_dir:
         t.join()
         logging.info("Завершено %s", t)
     logging.info("Перелік файлів: %s ", list_of_file)
