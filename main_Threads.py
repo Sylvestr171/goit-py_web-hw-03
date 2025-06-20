@@ -121,12 +121,12 @@ def iter_object_in_dir(path: Path, list_of_file: list =[], set_of_suffix: set =s
     logging.info("Перелік розширень: %s", set_of_suffix)
     return list_of_file, set_of_suffix
 
-def create_folder(set_of_suffix: set, destination_path: Path) -> None:
+def create_folder(set_of_suffix_in_func: set, destination_path: Path) -> None:
 
     "Функція створення каталогів"
 
     logging.info("Створення папок")
-    for i in set_of_suffix:
+    for i in set_of_suffix_in_func:
         new_folder_path=destination_path/i[1::]
         if not new_folder_path.exists():
             new_folder_path.mkdir(parents=True, exist_ok=True)
